@@ -2,6 +2,8 @@ package com.example.steph.nearby;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 
 import com.google.android.gms.location.LocationListener;
@@ -13,6 +15,8 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -28,6 +32,9 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.IOException;
+import java.util.List;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
@@ -39,6 +46,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Location lastLocation;
     private Marker currentLocationMarker;
     private static final int REQUEST_LOCATION_CODE = 99;
+    int PROXIMITY_RADIUS = 10;
+    double latitude, longitude;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,6 +120,69 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
        /* LatLng sydney = new LatLng(-34, 151);
         mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));*/
+    }
+
+    public void onClick(View v){
+        /*
+        Check if user clicks on the Button
+         */
+        Object dataTransfer[] = new Object[2];
+        getNearbyPlacesData getNearbyPlacesData= new getNearbyPlacesData();
+
+        switch(v.getId()) {
+            case R.id.B_search: {
+                EditText tf_location = (EditText) findViewById(R.id.TF_location);
+                //Now convert tf_location into a String variable
+                String location = tf_location.getText().toString();
+                //Create a List for the Geocoder **Look more indepth into Geocoder
+                List<Address> addressList = null;
+                MarkerOptions mo = new MarkerOptions();
+
+                //Now Check if the user ACTUALLY enters something in the search bar.
+                if (!location.equals("")) {
+                    Geocoder geocoder = new Geocoder(this);
+                    try {
+                        addressList = geocoder.getFromLocationName(location, 5);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    for (int i = 0; i < addressList.size(); i++) {
+                        Address myAddress = addressList.get(i);
+                        LatLng latlng = new LatLng(myAddress.getLatitude(), myAddress.getLongitude());
+                        mo.position(latlng);
+                        mo.title("Restaurants");
+                    /*
+                    ADD ICON FOR THE MARKER HERE in the future! Please don't forget
+                     */
+                        mMap.addMarker(mo);
+                        mMap.animateCamera(CameraUpdateFactory.newLatLng(latlng));
+                    }
+                }
+            }
+            break;
+            case R.id.B_restaurant:
+                mMap.clear(); //removes all markers from the map
+                String restaurant = "restaurant";
+                String url = getUrl(latitude, longitude, restaurant);
+                dataTransfer[0] = mMap;
+                dataTransfer[1]=url;
+
+                getNearbyPlacesData.execute(dataTransfer);
+                Toast.makeText(MapsActivity.this, "Showing Nearby Restaurants",Toast.LENGTH_LONG).show();
+                break;
+        }
+    }
+
+    private String getUrl(double latitude, double longitude, String nearbyPlace){
+        StringBuilder googlePlaceUrl = new StringBuilder("https://maps.googleapis.com/maps/api/place/findplacefromtext/json?");
+        googlePlaceUrl.append("location" + latitude +","+longitude);
+        googlePlaceUrl.append("&radius"+PROXIMITY_RADIUS);
+        googlePlaceUrl.append("&type="+nearbyPlace);
+        googlePlaceUrl.append("&sensor=true");
+        googlePlaceUrl.append("&key=" + "AIzaSyDluqoiHSplOT4A6Yu2_iRfUT-_H4NWRQc");
+
+        return googlePlaceUrl.toString();
     }
 
     protected synchronized void buildGoogleApiClient()
